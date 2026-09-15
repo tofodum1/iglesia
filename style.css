@@ -1,0 +1,182 @@
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;1,500&family=Karla:wght@400;500;700&display=swap');
+
+:root {
+  --ivory: #FAF6EF;
+  --berry: #6E1F35;
+  --berry-deep: #501526;
+  --gold: #C79A3E;
+  --ink: #2A211F;
+  --line: #E6DCC8;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ivory);
+  color: var(--ink);
+  font-family: 'Karla', sans-serif;
+  line-height: 1.5;
+}
+
+.wrap {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 48px 24px 64px;
+}
+
+.crest {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--berry);
+  margin: 0 0 20px;
+}
+
+.crest-img {
+  object-fit: cover;
+  background: #fff;
+  border: 1px solid var(--line);
+}
+
+h1 {
+  font-family: 'Lora', serif;
+  font-weight: 600;
+  font-size: 1.9rem;
+  line-height: 1.2;
+  margin: 0 0 8px;
+  color: var(--berry-deep);
+}
+
+.lede {
+  font-size: 1.02rem;
+  color: #5A4E48;
+  margin: 0 0 32px;
+  max-width: 38ch;
+}
+
+label {
+  display: block;
+  font-weight: 700;
+  font-size: 0.85rem;
+  margin: 22px 0 6px;
+  color: var(--ink);
+}
+
+label.first { margin-top: 0; }
+
+input[type="text"],
+input[type="tel"],
+input[type="email"],
+input[type="date"],
+select {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  font-family: 'Karla', sans-serif;
+  font-size: 1rem;
+  color: var(--ink);
+}
+
+input:focus, select:focus {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+}
+
+.pref-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.pref-option {
+  flex: 1;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px;
+  text-align: center;
+  cursor: pointer;
+  font-size: 0.92rem;
+  background: #fff;
+}
+
+.pref-option input { position: absolute; opacity: 0; pointer-events: none; }
+
+.pref-option:has(input:checked) {
+  border-color: var(--berry);
+  background: #FCEFE8;
+  color: var(--berry-deep);
+  font-weight: 700;
+}
+
+.checkbox-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-top: 26px;
+  padding: 14px;
+  background: #F2EADA;
+  border-radius: 8px;
+}
+
+.checkbox-row input { margin-top: 3px; }
+
+.checkbox-row p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #5A4E48;
+}
+
+.midweek-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.midweek-row label { margin: 0; }
+
+button {
+  width: 100%;
+  margin-top: 28px;
+  padding: 14px;
+  background: var(--berry);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-family: 'Karla', sans-serif;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+button:hover { background: var(--berry-deep); }
+
+.thanks-wrap {
+  text-align: center;
+  padding-top: 96px;
+}
+
+.thanks-wrap h1 { color: var(--berry-deep); }
+
+.staff-badge {
+  display: inline-block;
+  background: var(--gold);
+  color: #3A2C0E;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 4px;
+  margin-bottom: 14px;
+}
+
+.added-banner {
+  background: #E4F1E4;
+  color: #285C28;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  margin-bottom: 20px;
+}

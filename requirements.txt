@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+twilio
+sendgrid
+apscheduler
+jinja2
+python-multipart

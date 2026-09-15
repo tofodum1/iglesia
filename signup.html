@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to {{ church.name }}</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    :root {
+      {% if church.primary_color %}--berry: {{ church.primary_color }};{% endif %}
+      {% if church.primary_deep_color %}--berry-deep: {{ church.primary_deep_color }};{% endif %}
+      {% if church.accent_color %}--gold: {{ church.accent_color }};{% endif %}
+      {% if church.background_color %}--ivory: {{ church.background_color }};{% endif %}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    {% if church.badge_url %}
+    <img class="crest crest-img" src="{{ church.badge_url }}" alt="{{ church.name }} logo">
+    {% else %}
+    <div class="crest"></div>
+    {% endif %}
+    <h1>Welcome to {{ church.name }}</h1>
+    <p class="lede">Leave your number or email and we'll send a friendly reminder before your next few services.</p>
+
+    <form method="post" action="/signup/{{ church.id }}">
+      <label class="first" for="first_name">First name</label>
+      <input type="text" id="first_name" name="first_name" required>
+
+      <label>How should we reach you?</label>
+      <div class="pref-row">
+        <label class="pref-option">
+          <input type="radio" name="contact_preference" value="sms" checked onclick="togglePref('sms')">
+          Text message
+        </label>
+        <label class="pref-option">
+          <input type="radio" name="contact_preference" value="email" onclick="togglePref('email')">
+          Email
+        </label>
+      </div>
+
+      <div id="phone-field">
+        <label for="phone">Phone number</label>
+        <input type="tel" id="phone" name="phone" placeholder="(404) 555-0130">
+      </div>
+
+      <div id="email-field" style="display:none;">
+        <label for="email">Email address</label>
+        <input type="email" id="email" name="email" placeholder="you@example.com">
+      </div>
+
+      {% if services %}
+      <label for="service_visited_id">Which service did you attend today?</label>
+      <select id="service_visited_id" name="service_visited_id">
+        {% for s in services %}
+        <option value="{{ s.id }}">{{ s.name }}</option>
+        {% endfor %}
+      </select>
+      {% endif %}
+
+      {% if services|selectattr("type.value", "equalto", "midweek")|list %}
+      <div class="midweek-row">
+        <input type="checkbox" id="wants_midweek" name="wants_midweek" value="true">
+        <label for="wants_midweek">Also remind me about midweek service</label>
+      </div>
+      {% endif %}
+
+      <div class="checkbox-row">
+        <input type="checkbox" id="consent_given" name="consent_given" value="true" required>
+        <p>
+          By providing my info, I agree to receive reminders and encouragement
+          from {{ church.name }}. Message frequency varies. Reply STOP to
+          unsubscribe at any time. Msg &amp; data rates may apply.
+        </p>
+      </div>
+
+      <button type="submit">Sign me up</button>
+    </form>
+  </div>
+
+  <script>
+    function togglePref(pref) {
+      document.getElementById('phone-field').style.display = pref === 'sms' ? 'block' : 'none';
+      document.getElementById('email-field').style.display = pref === 'email' ? 'block' : 'none';
+      document.getElementById('phone').required = pref === 'sms';
+      document.getElementById('email').required = pref === 'email';
+    }
+    togglePref('sms');
+  </script>
+</body>
+</html>

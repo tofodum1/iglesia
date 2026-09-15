@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Staff Intake — {{ church.name }}</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    :root {
+      {% if church.primary_color %}--berry: {{ church.primary_color }};{% endif %}
+      {% if church.primary_deep_color %}--berry-deep: {{ church.primary_deep_color }};{% endif %}
+      {% if church.accent_color %}--gold: {{ church.accent_color }};{% endif %}
+      {% if church.background_color %}--ivory: {{ church.background_color }};{% endif %}
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <span class="staff-badge">Staff intake</span>
+    <h1>Add a paper form</h1>
+    <p class="lede">Only enter this if the visitor checked the consent box and signed the physical form.</p>
+
+    {% if request.query_params.get('added') %}
+    <div class="added-banner">Added! Ready for the next one.</div>
+    {% endif %}
+
+    <form method="post" action="/staff/{{ church.id }}/intake">
+      <label class="first" for="first_name">First name</label>
+      <input type="text" id="first_name" name="first_name" required>
+
+      <label>Contact preference (from the form)</label>
+      <div class="pref-row">
+        <label class="pref-option">
+          <input type="radio" name="contact_preference" value="sms" checked onclick="togglePref('sms')">
+          Text message
+        </label>
+        <label class="pref-option">
+          <input type="radio" name="contact_preference" value="email" onclick="togglePref('email')">
+          Email
+        </label>
+      </div>
+
+      <div id="phone-field">
+        <label for="phone">Phone number</label>
+        <input type="tel" id="phone" name="phone">
+      </div>
+
+      <div id="email-field" style="display:none;">
+        <label for="email">Email address</label>
+        <input type="email" id="email" name="email">
+      </div>
+
+      <label for="visit_date">Date they visited</label>
+      <input type="date" id="visit_date" name="visit_date">
+
+      {% if services %}
+      <label for="service_visited_id">Service attended</label>
+      <select id="service_visited_id" name="service_visited_id">
+        {% for s in services %}
+        <option value="{{ s.id }}">{{ s.name }}</option>
+        {% endfor %}
+      </select>
+      {% endif %}
+
+      <div class="midweek-row">
+        <input type="checkbox" id="wants_midweek" name="wants_midweek" value="true">
+        <label for="wants_midweek">Also wants midweek reminders</label>
+      </div>
+
+      <div class="checkbox-row">
+        <input type="checkbox" id="consent_given" name="consent_given" value="true" required>
+        <p>The physical form shows this person checked the consent box and signed.</p>
+      </div>
+
+      <button type="submit">Add to system</button>
+    </form>
+  </div>
+
+  <script>
+    function togglePref(pref) {
+      document.getElementById('phone-field').style.display = pref === 'sms' ? 'block' : 'none';
+      document.getElementById('email-field').style.display = pref === 'email' ? 'block' : 'none';
+    }
+    togglePref('sms');
+  </script>
+</body>
+</html>
