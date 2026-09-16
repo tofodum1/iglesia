@@ -1,142 +1,138 @@
 """
-Daily reminder job.
+Database models for the Newcomer Reminder System.
 
-Run once a day (e.g. via APScheduler in main.py, or an external cron hitting
-/internal/run-daily-job). For each active contact, it figures out whether a
-reminder for one of their church's services is due tomorrow, and if so sends
-the right template for their current phase.
-
-Design choice: reminders go out the day BEFORE the service, so people have
-time to plan. Change REMINDER_LEAD_DAYS if you want same-day instead.
+Multi-tenant by design: every Church has its own services + signoff,
+and every Contact belongs to exactly one church. Onboarding a new
+church means creating one Church row + its Service rows - nothing
+else in the codebase changes.
 """
 
-import logging
-from datetime import datetime, timedelta
+import enum
+import uuid
+from datetime import datetime, date
 
-from sqlalchemy.orm import Session
+from sqlalchemy import (
+    Column, String, Boolean, Integer, DateTime, Date, ForeignKey, Enum, Text
+)
+from sqlalchemy.orm import declarative_base, relationship
 
-from app import messages
-from app.models import Contact, Service, Church, ContactStatus, Phase, ServiceType, MessageLog
-from app.sender import send_sms, send_email
-
-logger = logging.getLogger("newcomer_reminder.scheduler")
-
-REMINDER_LEAD_DAYS = 1  # send reminder this many days before the service
+Base = declarative_base()
 
 
-def _service_falls_tomorrow(service: Service, today: datetime) -> bool:
-    target_date = today + timedelta(days=REMINDER_LEAD_DAYS)
-    return target_date.weekday() == service.day_of_week
+def gen_id():
+    return str(uuid.uuid4())
 
 
-def _log(db: Session, contact: Contact, channel: str, template_name: str, body: str, success: bool, error: str | None):
-    db.add(MessageLog(
-        contact_id=contact.id,
-        channel=channel,
-        template_used=template_name,
-        body=body,
-        success=success,
-        error=error,
-    ))
+class ContactPreference(str, enum.Enum):
+    sms = "sms"
+    email = "email"
 
 
-def _deliver(db: Session, contact: Contact, church: Church, body: str, template_name: str):
-    if contact.contact_preference.value == "sms" and contact.phone:
-        ok, err = send_sms(contact.phone, body, from_number=church.twilio_from_number)
-        _log(db, contact, "sms", template_name, body, ok, err)
-    elif contact.contact_preference.value == "email" and contact.email:
-        ok, err = send_email(
-            contact.email,
-            subject=f"{church.name} — Service Reminder",
-            body=body,
-            from_email=church.email_from_address,
-            from_name=church.email_from_name or church.name,
-        )
-        _log(db, contact, "email", template_name, body, ok, err)
-    else:
-        logger.warning(f"Contact {contact.id} has no usable {contact.contact_preference} destination")
-        return
-
-    contact.last_reminder_sent_at = datetime.utcnow()
+class Phase(str, enum.Enum):
+    phase_1 = "phase_1"       # first 3 Sundays welcome sequence
+    phase_2 = "phase_2"       # ongoing, opted-in
+    ended = "ended"           # sequence finished, no phase 2 opt-in (yet)
 
 
-def _render_for(contact: Contact, church: Church, service: Service, template: str) -> str:
-    return messages.render(
-        template,
-        first_name=contact.first_name,
-        church_name=church.name,
-        service_name=service.name,
-        service_day=service.day_of_week_label if hasattr(service, "day_of_week_label") else _weekday_name(service.day_of_week),
-        service_time=service.time_of_day,
-        church_signoff=church.signoff,
-    )
+class ContactStatus(str, enum.Enum):
+    active = "active"
+    paused = "paused"
+    opted_out = "opted_out"
 
 
-def _weekday_name(day_of_week: int) -> str:
-    names = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
-    return names[day_of_week]
+class ServiceType(str, enum.Enum):
+    sunday = "sunday"
+    midweek = "midweek"
 
 
-def run_daily_job(db: Session, now: datetime | None = None):
-    """
-    Main entry point. Call this once a day per church (or once globally -
-    it iterates every active church anyway).
-    """
-    now = now or datetime.utcnow()
-    churches = db.query(Church).filter(Church.active == True).all()  # noqa: E712
+class Church(Base):
+    __tablename__ = "churches"
 
-    for church in churches:
-        services = [s for s in church.services if s.enabled]
-        sunday_services = [s for s in services if s.type == ServiceType.sunday]
-        midweek_services = [s for s in services if s.type == ServiceType.midweek]
+    id = Column(String, primary_key=True, default=gen_id)
+    name = Column(String, nullable=False)
+    timezone = Column(String, nullable=False, default="America/New_York")
+    leader_name = Column(String, nullable=True)
+    phone = Column(String, nullable=True)
+    signoff = Column(String, nullable=False)  # e.g. "Winners Chapel Family"
 
-        contacts = db.query(Contact).filter(
-            Contact.church_id == church.id,
-            Contact.status == ContactStatus.active,
-        ).all()
+    # Twilio / Resend credentials, per-church so each org can use its own
+    # sending numbers/identities. Falls back to system-wide env vars if blank.
+    twilio_from_number = Column(String, nullable=True)
+    email_from_address = Column(String, nullable=True)
+    email_from_name = Column(String, nullable=True)
 
-        for contact in contacts:
-            _process_contact(db, church, contact, sunday_services, midweek_services, now)
+    # Branding for the signup/intake forms. All optional - falls back to the
+    # default berry/gold look if a church doesn't set its own.
+    primary_color = Column(String, nullable=True)    # e.g. "#6E1F35" - main accent (buttons, headings)
+    primary_deep_color = Column(String, nullable=True)  # darker shade of primary, for hover/emphasis
+    accent_color = Column(String, nullable=True)     # e.g. "#C79A3E" - secondary accent (focus rings, badges)
+    background_color = Column(String, nullable=True)  # e.g. "#FAF6EF" - page background
+    badge_url = Column(String, nullable=True)        # URL to the church's logo image; falls back to a plain circle
 
-    db.commit()
+    active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    services = relationship("Service", back_populates="church", cascade="all, delete-orphan")
+    contacts = relationship("Contact", back_populates="church", cascade="all, delete-orphan")
 
 
-def _process_contact(db, church, contact: Contact, sunday_services, midweek_services, now):
-    # Midweek reminders can go out regardless of phase, as long as the contact wants them
-    if contact.wants_midweek:
-        for service in midweek_services:
-            if _service_falls_tomorrow(service, now):
-                body = _render_for(contact, church, service, messages.MIDWEEK_REMINDER)
-                _deliver(db, contact, church, body, "midweek_reminder")
+class Service(Base):
+    __tablename__ = "services"
 
-    if contact.phase == Phase.phase_1:
-        for service in sunday_services:
-            if _service_falls_tomorrow(service, now) and contact.sundays_sent < 3:
-                template = messages.PHASE1_SEQUENCE[contact.sundays_sent]
-                body = _render_for(contact, church, service, template)
-                _deliver(db, contact, church, body, f"phase1_reminder_{contact.sundays_sent + 1}")
-                contact.sundays_sent += 1
+    id = Column(String, primary_key=True, default=gen_id)
+    church_id = Column(String, ForeignKey("churches.id"), nullable=False)
+    name = Column(String, nullable=False)              # "Sunday Worship Service"
+    type = Column(Enum(ServiceType), nullable=False)
+    day_of_week = Column(Integer, nullable=False)       # 0=Monday ... 6=Sunday (Python convention)
+    time_of_day = Column(String, nullable=False)        # "10:00" 24hr HH:MM in church's local tz
+    enabled = Column(Boolean, default=True)
 
-                if contact.sundays_sent == 3:
-                    # Immediately queue the phase 2 opt-in ask (sent same day as 3rd reminder's follow-up window closes).
-                    # In practice you may want to delay this a few days after their 3rd Sunday - see NOTE below.
-                    ask_body = messages.render(
-                        messages.PHASE2_OPT_IN_ASK,
-                        first_name=contact.first_name,
-                        church_name=church.name,
-                        church_signoff=church.signoff,
-                    )
-                    _deliver(db, contact, church, ask_body, "phase2_opt_in_ask")
-                    contact.phase = Phase.ended  # waiting on their reply to flip to phase_2
+    church = relationship("Church", back_populates="services")
 
-    elif contact.phase == Phase.phase_2:
-        for service in sunday_services:
-            if _service_falls_tomorrow(service, now):
-                template = messages.next_phase2_variant()
-                body = _render_for(contact, church, service, template)
-                _deliver(db, contact, church, body, "phase2_ongoing")
 
-# NOTE: the opt-in ask currently fires the same day as reminder #3 is sent.
-# If you'd rather wait a few days after their 3rd Sunday actually happens
-# (so it reads as "how was it" rather than "one more thing"), track a
-# `phase1_completed_date` on the contact and add a separate check here.
+class Contact(Base):
+    __tablename__ = "contacts"
+
+    id = Column(String, primary_key=True, default=gen_id)
+    church_id = Column(String, ForeignKey("churches.id"), nullable=False)
+
+    first_name = Column(String, nullable=False)
+    phone = Column(String, nullable=True)
+    email = Column(String, nullable=True)
+    contact_preference = Column(Enum(ContactPreference), nullable=False)
+
+    service_visited_id = Column(String, ForeignKey("services.id"), nullable=True)
+    first_visit_date = Column(Date, default=date.today)
+
+    wants_midweek = Column(Boolean, default=False)
+
+    consent_given = Column(Boolean, default=False)
+    consent_timestamp = Column(DateTime, nullable=True)
+    source = Column(String, default="digital")  # "digital" or "physical"
+
+    phase = Column(Enum(Phase), default=Phase.phase_1)
+    sundays_sent = Column(Integer, default=0)
+    phase2_opt_in = Column(Boolean, nullable=True)  # null = not yet asked
+    status = Column(Enum(ContactStatus), default=ContactStatus.active)
+
+    last_reminder_sent_at = Column(DateTime, nullable=True)
+    notes = Column(Text, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    church = relationship("Church", back_populates="contacts")
+    service_visited = relationship("Service")
+
+
+class MessageLog(Base):
+    """Every send gets logged - useful for debugging and for proving consent/opt-out compliance."""
+    __tablename__ = "message_log"
+
+    id = Column(String, primary_key=True, default=gen_id)
+    contact_id = Column(String, ForeignKey("contacts.id"), nullable=False)
+    channel = Column(String, nullable=False)  # "sms" or "email"
+    template_used = Column(String, nullable=False)
+    body = Column(Text, nullable=False)
+    sent_at = Column(DateTime, default=datetime.utcnow)
+    success = Column(Boolean, default=True)
+    error = Column(Text, nullable=True)
