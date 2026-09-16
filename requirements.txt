@@ -2,7 +2,7 @@ fastapi
 uvicorn[standard]
 sqlalchemy
 twilio
-sendgrid
+resend
 apscheduler
 jinja2
 python-multipart
