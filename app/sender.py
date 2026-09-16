@@ -7,8 +7,7 @@ import os
 import logging
 
 from twilio.rest import Client as TwilioClient
-from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail
+import resend
 
 logger = logging.getLogger("newcomer_reminder.sender")
 
@@ -16,9 +15,12 @@ TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
 TWILIO_DEFAULT_FROM = os.getenv("TWILIO_FROM_NUMBER")
 
-SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
-SENDGRID_DEFAULT_FROM_EMAIL = os.getenv("SENDGRID_FROM_EMAIL")
-SENDGRID_DEFAULT_FROM_NAME = os.getenv("SENDGRID_FROM_NAME", "Church Team")
+RESEND_API_KEY = os.getenv("RESEND_API_KEY")
+RESEND_DEFAULT_FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL")  # must be on a domain verified in Resend
+RESEND_DEFAULT_FROM_NAME = os.getenv("RESEND_FROM_NAME", "Church Team")
+
+if RESEND_API_KEY:
+    resend.api_key = RESEND_API_KEY
 
 
 def send_sms(to_number: str, body: str, from_number: str | None = None) -> tuple[bool, str | None]:
@@ -44,18 +46,18 @@ def send_email(
     from_email: str | None = None,
     from_name: str | None = None,
 ) -> tuple[bool, str | None]:
-    if not SENDGRID_API_KEY:
-        return False, "SendGrid API key not configured"
+    if not RESEND_API_KEY:
+        return False, "Resend API key not configured"
     try:
-        sg = SendGridAPIClient(SENDGRID_API_KEY)
-        message = Mail(
-            from_email=(from_email or SENDGRID_DEFAULT_FROM_EMAIL, from_name or SENDGRID_DEFAULT_FROM_NAME),
-            to_emails=to_email,
-            subject=subject,
-            plain_text_content=body,
-        )
-        sg.send(message)
+        sender_email = from_email or RESEND_DEFAULT_FROM_EMAIL
+        sender_name = from_name or RESEND_DEFAULT_FROM_NAME
+        resend.Emails.send({
+            "from": f"{sender_name} <{sender_email}>",
+            "to": [to_email],
+            "subject": subject,
+            "text": body,
+        })
         return True, None
     except Exception as e:
-        logger.exception("SendGrid send failed")
+        logger.exception("Resend send failed")
         return False, str(e)
