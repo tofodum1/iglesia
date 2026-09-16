@@ -7,14 +7,14 @@ phase for anyone who opts in.
 ## Setup
 
 1. `pip install -r requirements.txt`
-2. Copy `.env.example` to `.env` and fill in your Twilio + SendGrid credentials.
+2. Copy `.env.example` to `.env` and fill in your Twilio + Resend credentials.
 3. Run locally: `uvicorn app.main:app --reload`
 4. Visit `http://localhost:8000/docs` for the interactive API.
 
 ## Onboarding a church
 
 POST to `/admin/churches` with the church's name, signoff line, timezone,
-and optional per-church Twilio/SendGrid overrides. That returns a `signup_url`
+and optional per-church Twilio/Resend overrides. That returns a `signup_url`
 (put this behind a QR code for the digital form) and a `staff_intake_url`
 (bookmark this on a staff tablet/laptop for re-keying paper forms).
 
