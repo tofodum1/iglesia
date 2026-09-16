@@ -49,8 +49,8 @@ def _deliver(db: Session, contact: Contact, church: Church, body: str, template_
             contact.email,
             subject=f"{church.name} — Service Reminder",
             body=body,
-            from_email=church.sendgrid_from_email,
-            from_name=church.sendgrid_from_name or church.name,
+            from_email=church.email_from_address,
+            from_name=church.email_from_name or church.name,
         )
         _log(db, contact, "email", template_name, body, ok, err)
     else:
