@@ -115,7 +115,7 @@ def _send_signup_confirmation(contact: Contact, church: Church):
     elif contact.contact_preference == ContactPreference.email and contact.email:
         send_email(
             contact.email, subject=f"Welcome to {church.name}!", body=body,
-            from_email=church.sendgrid_from_email, from_name=church.sendgrid_from_name or church.name,
+            from_email=church.email_from_address, from_name=church.email_from_name or church.name,
         )
 
 
@@ -225,8 +225,8 @@ def create_church(
     leader_name: str = Form(""),
     signoff: str = Form(""),
     twilio_from_number: str = Form(""),
-    sendgrid_from_email: str = Form(""),
-    sendgrid_from_name: str = Form(""),
+    email_from_address: str = Form(""),
+    email_from_name: str = Form(""),
     primary_color: str = Form(""),
     primary_deep_color: str = Form(""),
     accent_color: str = Form(""),
@@ -240,8 +240,8 @@ def create_church(
         leader_name=leader_name or None,
         signoff=signoff or f"{name} Family",
         twilio_from_number=twilio_from_number or None,
-        sendgrid_from_email=sendgrid_from_email or None,
-        sendgrid_from_name=sendgrid_from_name or None,
+        email_from_address=email_from_address or None,
+        email_from_name=email_from_name or None,
         primary_color=primary_color or None,
         primary_deep_color=primary_deep_color or None,
         accent_color=accent_color or None,
